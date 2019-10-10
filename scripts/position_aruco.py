@@ -10,6 +10,7 @@ import cv2 as cv
 from cv2 import aruco
 import Queue, threading, time
 
+# from https://stackoverflow.com/questions/43665208/how-to-get-the-latest-frame-from-capture-device-camera-in-opencv-python
 # bufferless VideoCapture
 class VideoCapture:
 

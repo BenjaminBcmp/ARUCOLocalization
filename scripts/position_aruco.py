@@ -8,6 +8,33 @@ Created on Tue Sep 24 16:28:06 2019
 import numpy as np
 import cv2 as cv
 from cv2 import aruco
+import Queue, threading, time
+
+# bufferless VideoCapture
+class VideoCapture:
+
+  def __init__(self, name):
+    self.cap = cv2.VideoCapture(name)
+    self.q = Queue.Queue()
+    t = threading.Thread(target=self._reader)
+    t.daemon = True
+    t.start()
+
+  # read frames as soon as they are available, keeping only most recent one
+  def _reader(self):
+    while True:
+      ret, frame = self.cap.read()
+      if not ret:
+        break
+      if not self.q.empty():
+        try:
+          self.q.get_nowait()   # discard previous (unprocessed) frame
+        except Queue.Empty:
+          pass
+      self.q.put(frame)
+
+  def read(self):
+    return self.q.get()
 
 
 markerLength = 0.06 #Length (in m) of the side of the tag
@@ -33,12 +60,13 @@ cv.namedWindow('frame', cv.WINDOW_NORMAL)
 #cv.resizeWindow('frame', int(1280*resizeFactor), int(720*resizeFactor))
 
 #0 for laptop webcam, 1 for plugged usb webcam
-cap = cv.VideoCapture(0)
+#cap = cv.VideoCapture(0)
+cap = VideoCapture(0)
 
 #IMPORTANT NOTE : THE VIDEO STREAM RESOLUTION NEEDS TO BE THE SAME THAT THE
 #IMAGES USED DURING THE CAMERA CALIBRATION PROCEDURE
-cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
+# cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
+# cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
 
 while True:
     ret, imageBrute = cap.read()

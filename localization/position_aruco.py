@@ -61,7 +61,7 @@ while True:
         if (ref in ids) and (robot in ids):
             # Translation and rotation of the robot and the ref
             rvecRef = rvecs[ids == ref]
-            tvecRobot = tvecs[ids == ref]
+            tvecRef = tvecs[ids == ref]
             rvecRobot = rvecs[ids == robot]
             tvecRobot = tvecs[ids == robot]
         

@@ -58,8 +58,8 @@ def localizationTalker():
         # If a marker is detected
         if ids is not None and len(ids) > 0: 
             rvecs, tvecs = aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distCoeffs)
-            imageCorners = cv.aruco.drawDetectedMarkers(imageBrute, corners, ids)
-            imageAxes = imageCorners.copy()
+            # imageCorners = cv.aruco.drawDetectedMarkers(imageBrute, corners, ids)
+            # imageAxes = imageCorners.copy()
             # for i in range(0, len(ids)):
             #     imageAxes = aruco.drawAxis(imageAxes, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength/2)
                 
@@ -99,6 +99,7 @@ def localizationTalker():
                 angleRad = np.arctan2(rotRobotInRef[1,0], rotRobotInRef[0,0]) 
                 angleDeg = angleRad*180/np.pi
 
+                # Publish the message
                 msgPose = "P{},{},{}\n".format(posRobotInRef[0], posRobotInRef[1], angleDeg)
                 rospy.loginfo(msgPose)
                 pub.publish(msgPose)

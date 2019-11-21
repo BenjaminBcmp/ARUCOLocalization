@@ -2,12 +2,15 @@
 """
 Created on Tue Sep 24 16:28:06 2019
 
-@author: romain
+@author: benjy / romain
 """
 
 import numpy as np
 import cv2 as cv
 from cv2 import aruco
+
+import rospy
+from std_msgs.msg import String
 
 # Tag number
 ref = 2
@@ -32,77 +35,93 @@ distCoeffs = np.array([[-0.037,  0.46, -0.0025, -0.0064, -1.70]])
 # resizeFactor = 1.0
 # cv.resizeWindow('frame', int(1280*resizeFactor), int(720*resizeFactor))
 
-# on laptop : 0 for laptop webcam, 1 for plugged usb webcam
-# on raspberry pi : 0 for plugged usb webcam
-cap = cv.VideoCapture(0)
-
 # IMPORTANT NOTE : THE VIDEO STREAM RESOLUTION NEEDS TO BE THE SAME THAT THE
 # IMAGES USED DURING THE CAMERA CALIBRATION PROCEDURE
 # cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
 # cap.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
 
-while True:
-    ret, imageBrute = cap.read()
-    if not ret:
-        continue
-    
-    corners, ids, rejectedImgPoints = aruco.detectMarkers(imageBrute, dictionary)
-    # If a marker is detected
-    if ids is not None and len(ids) > 0: 
-        rvecs, tvecs = aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distCoeffs)
-        imageCorners = cv.aruco.drawDetectedMarkers(imageBrute, corners, ids)
-        imageAxes = imageCorners.copy()
-        for i in range(0, len(ids)):
-            imageAxes = aruco.drawAxis(imageAxes, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength/2)
-            
-        cv.imshow("frame", imageAxes)
-        
-        # Position of the robot with respect to tag ref
-        if (ref in ids) and (robot in ids):
-            # Translation and rotation of the robot and the ref
-            rvecRef = rvecs[ids == ref]
-            tvecRef = tvecs[ids == ref]
-            rvecRobot = rvecs[ids == robot]
-            tvecRobot = tvecs[ids == robot]
-        
-            rotRef, _ = cv.Rodrigues(rvecRef)
-            rotRobot, _ = cv.Rodrigues(rvecRobot)
-            
-            # Matrix related to the robot
-            transRobot = np.zeros((4,4))
-            transRobot[0:3, 0:3] = rotRobot
-            transRobot[0:3,3] = tvecRobot
-            transRobot[3, 3] = 1
-            
-            # Matrix related to the ref
-            rotRefT = rotRef.transpose()
-            iTransRef = np.zeros((4,4))
-            iTransRef[0:3, 0:3] = rotRefT
-            iTransRef[0:3, 3] = (- rotRefT @ tvecRef.transpose()).flatten()
-            iTransRef[3, 3] = 1
-            
-            # Position of the robot in the ref frame
-            posRobotInRobot = np.array([0,0,0,1])
-            posRobotInRef = iTransRef @ (transRobot @ posRobotInRobot)
-            
-            # Angle of the robot in the ref frame
-            rotRobotInRef = np.zeros((3,3))
-            rotRobotInRef = iTransRef @ transRobot
-            angleRad = np.arctan2(rotRobotInRef[1,0], rotRobotInRef[0,0]) 
-            angleDeg = angleRad*180/np.pi
+def localizationTalker():
+    # on laptop : 0 for laptop webcam, 1 for plugged usb webcam
+    # on raspberry pi : 0 for plugged usb webcam
+    cap = cv.VideoCapture(0)
 
-            # Attention ne marche que si le tag aruco du robot reste parrallèle
-            # au plan du sol (du tag de référence donc)
-            print(angleDeg)
+    pub = rospy.Publisher('localization', String, queue_size=10)
+    rospy.init_node('localizationTalker', anonymous=True)
+    rate = rospy.Rate(10) # 10hz
+
+    while not rospy.is_shutdown():
+        ret, imageBrute = cap.read()
+        if not ret:
+            continue
         
-    # If no marker is detected, we plot the camera stream
-    else:
-        cv.imshow("frame", imageBrute)
+        corners, ids, rejectedImgPoints = aruco.detectMarkers(imageBrute, dictionary)
+        # If a marker is detected
+        if ids is not None and len(ids) > 0: 
+            rvecs, tvecs = aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distCoeffs)
+            imageCorners = cv.aruco.drawDetectedMarkers(imageBrute, corners, ids)
+            imageAxes = imageCorners.copy()
+            # for i in range(0, len(ids)):
+            #     imageAxes = aruco.drawAxis(imageAxes, cameraMatrix, distCoeffs, rvecs[i], tvecs[i], markerLength/2)
+                
+            # cv.imshow("frame", imageAxes)
+            
+            # Position of the robot with respect to tag ref
+            if (ref in ids) and (robot in ids):
+                # Translation and rotation of the robot and the ref
+                rvecRef = rvecs[ids == ref]
+                tvecRef = tvecs[ids == ref]
+                rvecRobot = rvecs[ids == robot]
+                tvecRobot = tvecs[ids == robot]
+            
+                rotRef, _ = cv.Rodrigues(rvecRef)
+                rotRobot, _ = cv.Rodrigues(rvecRobot)
+                
+                # Matrix related to the robot
+                transRobot = np.zeros((4,4))
+                transRobot[0:3, 0:3] = rotRobot
+                transRobot[0:3,3] = tvecRobot
+                transRobot[3, 3] = 1
+                
+                # Matrix related to the ref
+                rotRefT = rotRef.transpose()
+                iTransRef = np.zeros((4,4))
+                iTransRef[0:3, 0:3] = rotRefT
+                iTransRef[0:3, 3] = (- rotRefT @ tvecRef.transpose()).flatten()
+                iTransRef[3, 3] = 1
+                
+                # Position of the robot in the ref frame
+                posRobotInRobot = np.array([0,0,0,1])
+                posRobotInRef = iTransRef @ (transRobot @ posRobotInRobot)
+                
+                # Angle of the robot in the ref frame
+                rotRobotInRef = np.zeros((3,3))
+                rotRobotInRef = iTransRef @ transRobot
+                angleRad = np.arctan2(rotRobotInRef[1,0], rotRobotInRef[0,0]) 
+                angleDeg = angleRad*180/np.pi
+
+                msgPose = "P{},{},{}\n".format(posRobotInRef[0], posRobotInRef[1], angleDeg)
+                rospy.loginfo(msgPose)
+                pub.publish(msgPose)
+                rate.sleep()
+
+                # Attention ne marche que si le tag aruco du robot reste parrallèle
+                # au plan du sol (du tag de référence donc)
+                # print(angleDeg)
+            
+        # If no marker is detected, we plot the camera stream
+        # else:
+        #     cv.imshow("frame", imageBrute)
+            
+        # if cv.waitKey(1) & 0xFF == ord('q'):
+        #     break
         
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
-    
-cap.release()
-cv.destroyAllWindows()
+    cap.release()
+    # cv.destroyAllWindows()
 
 
+if __name__ == '__main__':
+    try:
+        localizationTalker()
+    except rospy.ROSInterruptException:
+        pass
+        

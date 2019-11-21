@@ -93,7 +93,7 @@ while True:
 
             # Attention ne marche que si le tag aruco du robot reste parrallèle
             # au plan du sol (du tag de référence donc)
-            print(angledeg)
+            print(angleDeg)
         
     # If no marker is detected, we plot the camera stream
     else:

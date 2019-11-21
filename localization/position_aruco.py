@@ -49,7 +49,7 @@ while True:
     corners, ids, rejectedImgPoints = aruco.detectMarkers(imageBrute, dictionary)
     # If a marker is detected
     if ids is not None and len(ids) > 0: 
-        rvecs, tvecs, _objPoints = aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distCoeffs)
+        rvecs, tvecs = aruco.estimatePoseSingleMarkers(corners, markerLength, cameraMatrix, distCoeffs)
         imageCorners = cv.aruco.drawDetectedMarkers(imageBrute, corners, ids)
         imageAxes = imageCorners.copy()
         for i in range(0, len(ids)):
